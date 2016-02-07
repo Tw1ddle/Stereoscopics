@@ -1,11 +1,13 @@
 ![Project logo](screenshots/stereoscopics?raw=true "Stereoscopics Logo")
 
+WORK IN PROGRESS.
+
 A comparison of correct asymmetric and trimmed symmetric stereoscopic rendering methods with the inaccurate "toe-in" method. Written using Haxe and three.js.
 
 Try it [in your browser](http://tw1ddle.github.io/Stereoscopics/).
 
 ## Features ##
-* Compares different stereoscopic rendering techniques.
+* Compares stereoscopic rendering techniques.
 * Tested and compatible with Google Cardboard.
 
 ## How It Works ##
