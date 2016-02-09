@@ -1,18 +1,20 @@
 package;
 
-import composer.RenderPass;
-import composer.ShaderPass;
+import AnaglyphEffect;
 import dat.GUI;
+import dat.ShaderGUI;
 import dat.ThreeObjectGUI;
 import js.Browser;
-import shaders.FXAA;
 import stats.Stats;
 import three.Color;
+import three.Mesh;
+import three.MeshBasicMaterial;
 import three.PerspectiveCamera;
-import three.postprocessing.EffectComposer;
 import three.Scene;
+import three.SphereBufferGeometry;
 import three.WebGLRenderer;
 import webgl.Detector;
+import three.PlaneBufferGeometry;
 
 class Main {
 	public static inline var REPO_URL:String = "https://github.com/Tw1ddle/Stereoscopics";
@@ -23,11 +25,14 @@ class Main {
 	private var loaded:Bool = false;
 	
 	private var renderer:WebGLRenderer;
-	private var composer:EffectComposer;
-	private var aaPass:ShaderPass;
+	//private var composer:EffectComposer;
+	//private var aaPass:ShaderPass;
 	
 	private var scene:Scene;
 	private var camera:PerspectiveCamera;
+	
+	// TODO implement more effects
+	private var anaglyphEffect:AnaglyphEffect;
 	
 	private static var lastAnimationTime:Float = 0.0; // Last time from requestAnimationFrame
 	private static var dt:Float = 0.0; // Frame delta time
@@ -75,21 +80,6 @@ class Main {
 		// Setup WebGL renderer
         renderer = new WebGLRenderer( { antialias: true } );
 		
-		// WebGL extensions support check
-		var extDerivatives = 'OES_standard_derivatives';
-		var ext = renderer.context.getExtension(extDerivatives);
-		if (ext == null) {
-			var missingExtensionInfo = Browser.document.createElement('div');
-			missingExtensionInfo.style.position = 'absolute';
-			missingExtensionInfo.style.top = '10px';
-			missingExtensionInfo.style.width = '100%';
-			missingExtensionInfo.style.textAlign = 'center';
-			missingExtensionInfo.style.color = '#ffffff';
-			missingExtensionInfo.innerHTML = 'Missing required WebGL extension: ' + extDerivatives + ' Click <a href="' + REPO_URL + '" target="_blank">here for project info</a> instead.';
-			gameDiv.appendChild(missingExtensionInfo);
-			return;
-		}
-		
         renderer.sortObjects = false;
 		renderer.autoClear = false;
 		renderer.setClearColor(new Color(0x000000));
@@ -115,20 +105,39 @@ class Main {
 		var height = Browser.window.innerHeight * renderer.getPixelRatio();
 		
 		scene = new Scene();
-		camera = new PerspectiveCamera(75, width / height, 1.0, 8000.0);
-		camera.position.z = 150;
+		camera = new PerspectiveCamera(60, width / height, 2.0, 10000.0);
+		camera.position.set(0, 0, 10);
+		untyped camera.focalLength = 10;
+		
+		// Initial scene setup
+		var sphere = new SphereBufferGeometry(32, 32, 16);
+		var plane = new PlaneBufferGeometry(10, 10, 1, 1);
+		var material = new MeshBasicMaterial( { color: 0xBBBBBB } );
+		
+		var zeroPlane = new Mesh(plane, material);
+		zeroPlane.position.set(-5, 5, 0);
+		scene.add(zeroPlane);
+		
+		for (i in 0...20) {
+			var mesh = new Mesh(sphere, material);
+			mesh.position.set(Math.random() * 500 - 250, Math.random() * 500 - 250, -200 - Math.random() * 500);
+			scene.add(mesh);
+		}
 		
 		// Setup composer passes
-		composer = new EffectComposer(renderer);
+		anaglyphEffect = new AnaglyphEffect(renderer, width, height);
+		anaglyphEffect.setSize(width , height);
 		
-		var renderPass = new RenderPass(scene, camera);
+		//composer = new EffectComposer(renderer);
 		
-		aaPass = new ShaderPass( { vertexShader: FXAA.vertexShader, fragmentShader: FXAA.fragmentShader, uniforms: FXAA.uniforms } );
-		aaPass.renderToScreen = true;
-		aaPass.uniforms.resolution.value.set(width, height);
+		//var renderPass = new RenderPass(scene, camera);
 		
-		composer.addPass(renderPass);
-		composer.addPass(aaPass);
+		//aaPass = new ShaderPass( { vertexShader: FXAA.vertexShader, fragmentShader: FXAA.fragmentShader, uniforms: FXAA.uniforms } );
+		//aaPass.renderToScreen = true;
+		//aaPass.uniforms.resolution.value.set(width, height);
+		
+		//composer.addPass(renderPass);
+		//composer.addPass(aaPass);
 		
 		// Initial renderer setup
 		onResize();
@@ -183,8 +192,9 @@ class Main {
 		
 		renderer.setSize(Browser.window.innerWidth, Browser.window.innerHeight);
 		
-		composer.setSize(width, height);
-		aaPass.uniforms.resolution.value.set(width, height);
+		anaglyphEffect.setSize(width, height);
+		//composer.setSize(width, height);
+		//aaPass.uniforms.resolution.value.set(width, height);
 		
 		camera.aspect = width / height;
 		camera.updateProjectionMatrix();
@@ -198,7 +208,8 @@ class Main {
 		dt = (time - lastAnimationTime) * 0.001; // Seconds
 		lastAnimationTime = time;
 		
-		composer.render(dt);
+		//composer.render(dt);
+		anaglyphEffect.render(scene, camera);
 		
 		Browser.window.requestAnimationFrame(animate);
 		
@@ -210,9 +221,13 @@ class Main {
 	#if debug
 	private inline function setupGUI():Void {
 		ThreeObjectGUI.addItem(sceneGUI, camera, "World Camera");
+		ThreeObjectGUI.addItem(sceneGUI, anaglyphEffect.stereo, "Stereo Camera");
+		ThreeObjectGUI.addItem(sceneGUI, anaglyphEffect.stereo.cameraL, "Stereo Camera Left");
+		ThreeObjectGUI.addItem(sceneGUI, anaglyphEffect.stereo.cameraR, "Stereo Camera Right");
+		
 		ThreeObjectGUI.addItem(sceneGUI, scene, "Scene");
 		
-		//ShaderGUI.generate(shaderGUI, "FXAA", aaPass.uniforms);
+		ShaderGUI.generate(shaderGUI, "Anaglyph", anaglyphEffect.material.uniforms);
 	}
 	
 	private inline function setupStats(mode:Mode = Mode.MEM):Void {

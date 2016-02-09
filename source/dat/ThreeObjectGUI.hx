@@ -4,6 +4,7 @@ import three.PointLight;
 import three.Scene;
 import three.Object3D;
 import three.PointLight;
+import three.Vector3;
 
 class ThreeObjectGUI {
 	private static var guiItemCount:Int = 0;
@@ -54,6 +55,17 @@ class ThreeObjectGUI {
 			var light:PointLight = cast object;
 			
 			folder.add(light, 'intensity', 0, 3, 0.01).listen();
+		}
+		
+		for (field in Reflect.fields(object)) {
+			var prop = Reflect.getProperty(object, field);
+			
+			if (Std.is(prop, Int)) {
+				folder.add(object, field).listen();
+			}
+			else if (Std.is(prop, Float)) {
+				folder.add(object, field).listen();
+			}
 		}
 		
 		return folder;

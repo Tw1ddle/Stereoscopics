@@ -1,5 +1,11 @@
 (function (console, $global) { "use strict";
 var $estr = function() { return js_Boot.__string_rec(this,''); };
+function $extend(from, fields) {
+	function Inherit() {} Inherit.prototype = from; var proto = new Inherit();
+	for (var name in fields) proto[name] = fields[name];
+	if( fields.toString !== Object.prototype.toString ) proto.toString = fields.toString;
+	return proto;
+}
 var AnaglyphEffect = function(renderer,width,height) {
 	this.renderer = renderer;
 	this.camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
@@ -47,6 +53,8 @@ HxOverrides.indexOf = function(a,obj,i) {
 	return -1;
 };
 var Main = function() {
+	this.shaderGUI = new dat.GUI({ autoPlace : true});
+	this.sceneGUI = new dat.GUI({ autoPlace : true});
 	this.loaded = false;
 	window.onload = $bind(this,this.onWindowLoaded);
 };
@@ -135,6 +143,13 @@ Main.prototype = {
 		};
 		window.document.addEventListener("mousewheel",onMouseWheel,false);
 		window.document.addEventListener("DOMMouseScroll",onMouseWheel,false);
+		this.setupStats(null);
+		dat_ThreeObjectGUI.addItem(this.sceneGUI,this.camera,"World Camera");
+		dat_ThreeObjectGUI.addItem(this.sceneGUI,this.anaglyphEffect.stereo,"Stereo Camera");
+		dat_ThreeObjectGUI.addItem(this.sceneGUI,this.anaglyphEffect.stereo.cameraL,"Stereo Camera Left");
+		dat_ThreeObjectGUI.addItem(this.sceneGUI,this.anaglyphEffect.stereo.cameraR,"Stereo Camera Right");
+		dat_ThreeObjectGUI.addItem(this.sceneGUI,this.scene,"Scene");
+		dat_ShaderGUI.generate(this.shaderGUI,"Anaglyph",this.anaglyphEffect.material.uniforms);
 		this.loaded = true;
 		gameDiv.appendChild(this.renderer.domElement);
 		window.requestAnimationFrame($bind(this,this.animate));
@@ -148,10 +163,31 @@ Main.prototype = {
 		this.camera.updateProjectionMatrix();
 	}
 	,animate: function(time) {
+		this.stats.begin();
 		Main.dt = (time - Main.lastAnimationTime) * 0.001;
 		Main.lastAnimationTime = time;
 		this.anaglyphEffect.render(this.scene,this.camera);
 		window.requestAnimationFrame($bind(this,this.animate));
+		this.stats.end();
+	}
+	,setupGUI: function() {
+		dat_ThreeObjectGUI.addItem(this.sceneGUI,this.camera,"World Camera");
+		dat_ThreeObjectGUI.addItem(this.sceneGUI,this.anaglyphEffect.stereo,"Stereo Camera");
+		dat_ThreeObjectGUI.addItem(this.sceneGUI,this.anaglyphEffect.stereo.cameraL,"Stereo Camera Left");
+		dat_ThreeObjectGUI.addItem(this.sceneGUI,this.anaglyphEffect.stereo.cameraR,"Stereo Camera Right");
+		dat_ThreeObjectGUI.addItem(this.sceneGUI,this.scene,"Scene");
+		dat_ShaderGUI.generate(this.shaderGUI,"Anaglyph",this.anaglyphEffect.material.uniforms);
+	}
+	,setupStats: function(mode) {
+		if(mode == null) mode = 2;
+		var actual = this.stats;
+		var expected = null;
+		if(actual != expected) throw new js__$Boot_HaxeError("FAIL: values are not equal (expected: " + Std.string(expected) + ", actual: " + Std.string(actual) + ")");
+		this.stats = new Stats();
+		this.stats.domElement.style.position = "absolute";
+		this.stats.domElement.style.left = "0px";
+		this.stats.domElement.style.top = "0px";
+		window.document.body.appendChild(this.stats.domElement);
 	}
 	,__class__: Main
 };
@@ -162,6 +198,7 @@ Reflect.field = function(o,field) {
 	try {
 		return o[field];
 	} catch( e ) {
+		if (e instanceof js__$Boot_HaxeError) e = e.val;
 		return null;
 	}
 };
@@ -254,6 +291,17 @@ dat_ThreeObjectGUI.addItem = function(gui,object,tag) {
 	}
 	return folder;
 };
+var js__$Boot_HaxeError = function(val) {
+	Error.call(this);
+	this.val = val;
+	this.message = String(val);
+	if(Error.captureStackTrace) Error.captureStackTrace(this,js__$Boot_HaxeError);
+};
+js__$Boot_HaxeError.__name__ = true;
+js__$Boot_HaxeError.__super__ = Error;
+js__$Boot_HaxeError.prototype = $extend(Error.prototype,{
+	__class__: js__$Boot_HaxeError
+});
 var js_Boot = function() { };
 js_Boot.__name__ = true;
 js_Boot.getClass = function(o) {
@@ -301,6 +349,7 @@ js_Boot.__string_rec = function(o,s) {
 		try {
 			tostr = o.toString;
 		} catch( e ) {
+			if (e instanceof js__$Boot_HaxeError) e = e.val;
 			return "???";
 		}
 		if(tostr != null && tostr != Object.toString && typeof(tostr) == "function") {
@@ -420,3 +469,5 @@ shaders_Anaglyph.vertexShader = "varying vec2 vUv;\r\n\r\nvoid main()\r\n{\r\n\t
 shaders_Anaglyph.fragmentShader = "varying vec2 vUv;\r\n\r\nuniform sampler2D tLeft;\r\nuniform sampler2D tRight;\r\nuniform int type;\r\n\r\nvoid main()\r\n{\r\n\tvec4 colorLeft = texture2D(tLeft, vUv);\r\n\tvec4 colorRight = texture2D(tRight, vUv);\r\n\t\r\n\tif(type == 0)\r\n\t{\r\n\t\t// Based on http://3dtv.at/Knowhow/AnaglyphComparison_en.aspx\r\n\t\tgl_FragColor = vec4(colorLeft.g * 0.7 + colorLeft.b * 0.3, colorRight.g, colorRight.b, colorLeft.a + colorRight.a);\r\n\t}\r\n\telse\r\n\t{\r\n\t\tgl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);\r\n\t}\r\n}";
 Main.main();
 })(typeof console != "undefined" ? console : {log:function(){}}, typeof window != "undefined" ? window : typeof global != "undefined" ? global : typeof self != "undefined" ? self : this);
+
+//# sourceMappingURL=game.js.map
