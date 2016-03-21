@@ -1,8 +1,8 @@
-![Project logo](screenshots/stereoscopics?raw=true "Stereoscopics Logo")
+![Project logo](screenshots/stereoscopics_logo.png?raw=true "Stereoscopics Logo")
 
 WORK IN PROGRESS.
 
-A comparison of correct asymmetric and trimmed symmetric stereoscopic rendering methods with the inaccurate "toe-in" method. Written using Haxe and three.js.
+A comparison of asymmetric and trimmed symmetric stereo rendering methods with the inaccurate "toe-in" method.
 
 Try it [in your browser](http://tw1ddle.github.io/Stereoscopics/).
 
@@ -12,7 +12,7 @@ Try it [in your browser](http://tw1ddle.github.io/Stereoscopics/).
 
 ## How It Works ##
 
-To gain a complete understanding read this excellent writeup by [Paul Bourke](http://paulbourke.net/stereographics/stereorender/).
+See this writeup on stereo rendering methods by [Paul Bourke](http://paulbourke.net/stereographics/stereorender/).
 
 ## Screenshots ##
 
@@ -25,4 +25,5 @@ Asymmetric and trimmed symmetric:
 ![Screenshot](https://github.com/Tw1ddle/Stereoscopics/blob/master/screenshots/asymmetric.png?raw=true "Asymmetric Rendering Method Screenshot 2")
 
 ## Notes ##
+* Written using Haxe and three.js.
 * Uses actuate and Sure from [haxelib](http://lib.haxe.org/).
