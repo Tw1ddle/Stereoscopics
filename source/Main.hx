@@ -1,6 +1,5 @@
 package;
 
-import AnaglyphEffect;
 import dat.GUI;
 import dat.ShaderGUI;
 import dat.ThreeObjectGUI;
@@ -10,36 +9,46 @@ import three.Color;
 import three.Mesh;
 import three.MeshBasicMaterial;
 import three.PerspectiveCamera;
+import three.PlaneBufferGeometry;
 import three.Scene;
 import three.SphereBufferGeometry;
+import three.StereoCamera;
 import three.WebGLRenderer;
 import webgl.Detector;
-import three.PlaneBufferGeometry;
+
+@:enum abstract Effect(String) from String to String {
+	var ANAGLYPH = "Anaglyph";
+	var TOE_IN = "Toe-in";
+	var SYMMETRIC_STEREO = "Symmetric Stereo";
+	var ASYMMETRIC_STEREO = "Asymmetric Stereo";
+}
 
 class Main {
+	public static inline var REPO_NAME:String = "Stereoscopics";
 	public static inline var REPO_URL:String = "https://github.com/Tw1ddle/Stereoscopics";
 	public static inline var WEBSITE_URL:String = "http://samcodes.co.uk/";
 	public static inline var TWITTER_URL:String = "https://twitter.com/Sam_Twidale";
 	public static inline var HAXE_URL:String = "http://haxe.org/";
 	
-	private var loaded:Bool = false;
-	
 	private var renderer:WebGLRenderer;
-	//private var composer:EffectComposer;
-	//private var aaPass:ShaderPass;
-	
 	private var scene:Scene;
-	private var camera:PerspectiveCamera;
+	private var monoCamera:PerspectiveCamera;
+	private var stereoCamera:StereoCamera;
 	
-	// TODO implement more effects
+	private var effect:Effect; // Current effect
+	
+	// Stereo techniques
 	private var anaglyphEffect:AnaglyphEffect;
+	private var toeInEffect:ToeInEffect;
+	private var asymmetricStereoEffect:AsymmetricStereoEffect;
+	private var symmetricStereoEffect:SymmetricStereoEffect;
 	
 	private static var lastAnimationTime:Float = 0.0; // Last time from requestAnimationFrame
 	private static var dt:Float = 0.0; // Frame delta time
 	
-	#if debug
-	private var sceneGUI:GUI = new GUI( { autoPlace:true } );
 	private var shaderGUI:GUI = new GUI( { autoPlace:true } );
+	
+	#if debug
 	private var stats(default, null):Stats;
 	#end
 	
@@ -98,16 +107,21 @@ class Main {
 		info.style.width = '100%';
 		info.style.textAlign = 'center';
 		info.style.color = 'white';
-		info.innerHTML = '<a href="https://github.com/Tw1ddle/Stereoscopics" target="_blank">Stereoscopics</a> by <a href="http://www.samcodes.co.uk/" target="_blank">Sam Twidale</a>.';
+		info.innerHTML = '<a href="' + REPO_URL + '" target="_blank">' + REPO_NAME + '</a> by <a href="' + WEBSITE_URL + '" target="_blank">Sam Twidale</a>.';
 		container.appendChild(info);
 		
 		var width = Browser.window.innerWidth * renderer.getPixelRatio();
 		var height = Browser.window.innerHeight * renderer.getPixelRatio();
 		
+		// Scene setup
 		scene = new Scene();
-		camera = new PerspectiveCamera(60, width / height, 2.0, 10000.0);
-		camera.position.set(0, 0, 10);
-		untyped camera.focalLength = 10;
+		
+		// Camera setup
+		monoCamera = new PerspectiveCamera(60, width / height, 2.0, 10000.0);
+		monoCamera.position.set(0, 0, 10);
+		untyped monoCamera.focalLength = 10;
+		
+		stereoCamera = new StereoCamera();
 		
 		// Initial scene setup
 		var sphere = new SphereBufferGeometry(32, 32, 16);
@@ -124,20 +138,20 @@ class Main {
 			scene.add(mesh);
 		}
 		
-		// Setup composer passes
-		anaglyphEffect = new AnaglyphEffect(renderer, width, height);
-		anaglyphEffect.setSize(width , height);
+		// Setup effects
+		effect = Effect.ANAGLYPH;
 		
-		//composer = new EffectComposer(renderer);
+		anaglyphEffect = new AnaglyphEffect(renderer, stereoCamera, width, height);
+		anaglyphEffect.setSize(width, height);
 		
-		//var renderPass = new RenderPass(scene, camera);
+		toeInEffect = new ToeInEffect(renderer, stereoCamera, width, height);
+		toeInEffect.setSize(width, height);
 		
-		//aaPass = new ShaderPass( { vertexShader: FXAA.vertexShader, fragmentShader: FXAA.fragmentShader, uniforms: FXAA.uniforms } );
-		//aaPass.renderToScreen = true;
-		//aaPass.uniforms.resolution.value.set(width, height);
+		symmetricStereoEffect = new SymmetricStereoEffect(renderer, stereoCamera, width, height);
+		symmetricStereoEffect.setSize(width, height);
 		
-		//composer.addPass(renderPass);
-		//composer.addPass(aaPass);
+		asymmetricStereoEffect = new AsymmetricStereoEffect(renderer, stereoCamera, width, height);
+		asymmetricStereoEffect.setSize(width, height);
 		
 		// Initial renderer setup
 		onResize();
@@ -171,16 +185,15 @@ class Main {
 		Browser.document.addEventListener("mousewheel", onMouseWheel, false);
 		Browser.document.addEventListener("DOMMouseScroll", onMouseWheel, false);
 		
+		// Onscreen debug controls
+		setupGUI();
+		
 		#if debug
 		// Setup performance stats
 		setupStats();
-		
-		// Onscreen debug controls
-		setupGUI();
 		#end
 		
 		// Present game and start animation loop
-		loaded = true;
 		gameDiv.appendChild(renderer.domElement);
 		Browser.window.requestAnimationFrame(animate);
 	}
@@ -193,11 +206,9 @@ class Main {
 		renderer.setSize(Browser.window.innerWidth, Browser.window.innerHeight);
 		
 		anaglyphEffect.setSize(width, height);
-		//composer.setSize(width, height);
-		//aaPass.uniforms.resolution.value.set(width, height);
 		
-		camera.aspect = width / height;
-		camera.updateProjectionMatrix();
+		monoCamera.aspect = width / height;
+		monoCamera.updateProjectionMatrix();
 	}
 	
 	private function animate(time:Float):Void {
@@ -208,8 +219,16 @@ class Main {
 		dt = (time - lastAnimationTime) * 0.001; // Seconds
 		lastAnimationTime = time;
 		
-		//composer.render(dt);
-		anaglyphEffect.render(scene, camera);
+		switch(effect) {
+			case ANAGLYPH:
+				anaglyphEffect.render(scene, monoCamera);
+			case TOE_IN:
+				toeInEffect.render(scene, monoCamera);
+			case SYMMETRIC_STEREO:
+				symmetricStereoEffect.render(scene, monoCamera);
+			case ASYMMETRIC_STEREO:
+				asymmetricStereoEffect.render(scene, monoCamera);
+		}
 		
 		Browser.window.requestAnimationFrame(animate);
 		
@@ -218,18 +237,28 @@ class Main {
 		#end
 	}
 	
-	#if debug
 	private inline function setupGUI():Void {
-		ThreeObjectGUI.addItem(sceneGUI, camera, "World Camera");
-		ThreeObjectGUI.addItem(sceneGUI, anaglyphEffect.stereo, "Stereo Camera");
-		ThreeObjectGUI.addItem(sceneGUI, anaglyphEffect.stereo.cameraL, "Stereo Camera Left");
-		ThreeObjectGUI.addItem(sceneGUI, anaglyphEffect.stereo.cameraR, "Stereo Camera Right");
+		shaderGUI.add(this, 'effect', {
+			Anaglyph: ANAGLYPH,
+			Toein: TOE_IN,
+			Symmetric: SYMMETRIC_STEREO,
+			Asymmetric: ASYMMETRIC_STEREO
+		}).listen();
 		
-		ThreeObjectGUI.addItem(sceneGUI, scene, "Scene");
+		ThreeObjectGUI.addItem(shaderGUI, monoCamera, "Mono Camera");
+		ThreeObjectGUI.addItem(shaderGUI, stereoCamera, "Stereo Camera");
+		ThreeObjectGUI.addItem(shaderGUI, stereoCamera.cameraL, "Stereo Camera Left");
+		ThreeObjectGUI.addItem(shaderGUI, stereoCamera.cameraR, "Stereo Camera Right");
+		
+		//ThreeObjectGUI.addItem(shaderGUI, scene, "Scene");
 		
 		ShaderGUI.generate(shaderGUI, "Anaglyph", anaglyphEffect.material.uniforms);
+		ShaderGUI.generate(shaderGUI, "Toe-in", toeInEffect.material.uniforms);
+		ShaderGUI.generate(shaderGUI, "Symmetric", symmetricStereoEffect.material.uniforms);
+		ShaderGUI.generate(shaderGUI, "Asymmetric", asymmetricStereoEffect.material.uniforms);
 	}
 	
+	#if debug
 	private inline function setupStats(mode:Mode = Mode.MEM):Void {
 		Sure.sure(stats == null);
 		stats = new Stats();

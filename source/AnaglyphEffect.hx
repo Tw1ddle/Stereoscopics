@@ -10,25 +10,26 @@ import three.Scene;
 import three.ShaderMaterial;
 import three.StereoCamera;
 import three.TextureFilter;
-import three.WebGLRenderer;
 import three.WebGLRenderTarget;
 import three.WebGLRenderTargetOptions;
+import three.WebGLRenderer;
 
+// Single screen anaglyph effect
 class AnaglyphEffect {
 	private var camera:OrthographicCamera;
+	private var stereo:StereoCamera;
 	private var scene:Scene;
-	public var stereo(default,null):StereoCamera;
 	private var params:WebGLRenderTargetOptions;
 	private var left:WebGLRenderTarget;
 	private var right:WebGLRenderTarget;
 	public var material(default, null):ShaderMaterial;
 	private var renderer:WebGLRenderer;
 	
-	public function new(renderer:WebGLRenderer, width:Float, height:Float) {
+	public function new(renderer:WebGLRenderer, stereoCamera:StereoCamera, width:Float, height:Float) {
 		this.renderer = renderer;
+		this.stereo = stereoCamera;
 		camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
 		scene = new Scene();
-		stereo = new StereoCamera();
 		params = { minFilter: TextureFilter.LinearFilter, magFilter: TextureFilter.NearestFilter, format: cast PixelFormat.RGBAFormat };
 		left = new WebGLRenderTarget(width, height, params);
 		right = new WebGLRenderTarget(width, height, params);

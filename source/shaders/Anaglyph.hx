@@ -12,6 +12,6 @@ class Anaglyph {
 		tRight: { type: "t", value: null },
 		type: { type: "i", value: 0 }
 	};
-	public static var vertexShader = FileReader.readFile("source/shaders/anaglyph.vertex");
+	public static var vertexShader = FileReader.readFile("source/shaders/passthrough.vertex");
 	public static var fragmentShader = FileReader.readFile("source/shaders/anaglyph.fragment");
 }
