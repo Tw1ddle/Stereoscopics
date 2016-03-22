@@ -150,7 +150,7 @@ class Main {
 		symmetricStereoEffect = new SymmetricStereoEffect(renderer, stereoCamera, width, height);
 		symmetricStereoEffect.setSize(width, height);
 		
-		asymmetricStereoEffect = new AsymmetricStereoEffect(renderer, stereoCamera, width, height);
+		asymmetricStereoEffect = new AsymmetricStereoEffect(renderer, width, height);
 		asymmetricStereoEffect.setSize(width, height);
 		
 		// Initial renderer setup
@@ -203,9 +203,18 @@ class Main {
 		var width = Browser.window.innerWidth * renderer.getPixelRatio();
 		var height = Browser.window.innerHeight * renderer.getPixelRatio();
 		
-		renderer.setSize(Browser.window.innerWidth, Browser.window.innerHeight);
+		renderer.setSize(width, height);
 		
-		anaglyphEffect.setSize(width, height);
+		switch(effect) {
+			case ANAGLYPH:
+				anaglyphEffect.setSize(width, height);
+			case TOE_IN:
+				toeInEffect.setSize(width, height);
+			case SYMMETRIC_STEREO:
+				symmetricStereoEffect.setSize(width, height);
+			case ASYMMETRIC_STEREO:
+				asymmetricStereoEffect.setSize(width, height);
+		}
 		
 		monoCamera.aspect = width / height;
 		monoCamera.updateProjectionMatrix();
@@ -243,7 +252,9 @@ class Main {
 			Toein: TOE_IN,
 			Symmetric: SYMMETRIC_STEREO,
 			Asymmetric: ASYMMETRIC_STEREO
-		}).listen();
+		}).listen().onChange(function(newValue) {
+			onResize();
+		});
 		
 		ThreeObjectGUI.addItem(shaderGUI, monoCamera, "Mono Camera");
 		ThreeObjectGUI.addItem(shaderGUI, stereoCamera, "Stereo Camera");
@@ -253,9 +264,6 @@ class Main {
 		//ThreeObjectGUI.addItem(shaderGUI, scene, "Scene");
 		
 		ShaderGUI.generate(shaderGUI, "Anaglyph", anaglyphEffect.material.uniforms);
-		ShaderGUI.generate(shaderGUI, "Toe-in", toeInEffect.material.uniforms);
-		ShaderGUI.generate(shaderGUI, "Symmetric", symmetricStereoEffect.material.uniforms);
-		ShaderGUI.generate(shaderGUI, "Asymmetric", asymmetricStereoEffect.material.uniforms);
 	}
 	
 	#if debug

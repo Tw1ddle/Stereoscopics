@@ -32,34 +32,17 @@ AnaglyphEffect.prototype = {
 	}
 	,__class__: AnaglyphEffect
 };
-var AsymmetricStereoEffect = function(renderer,stereoCamera,width,height) {
+var AsymmetricStereoEffect = function(renderer,width,height) {
 	this.renderer = renderer;
-	this.stereo = stereoCamera;
-	this.camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
-	this.scene = new THREE.Scene();
-	this.params = { minFilter : THREE.LinearFilter, magFilter : THREE.NearestFilter, format : THREE.RGBAFormat};
-	this.left = new THREE.WebGLRenderTarget(width,height,this.params);
-	this.right = new THREE.WebGLRenderTarget(width,height,this.params);
-	this.material = new THREE.ShaderMaterial({ vertexShader : shaders_AsymmetricStereo.vertexShader, fragmentShader : shaders_AsymmetricStereo.fragmentShader, uniforms : shaders_AsymmetricStereo.uniforms});
-	this.material.uniforms.tLeft.value = this.left;
-	this.material.uniforms.tRight.value = this.right;
-	var mesh = new THREE.Mesh(new THREE.PlaneBufferGeometry(2,2),this.material);
-	this.scene.add(mesh);
 };
 AsymmetricStereoEffect.__name__ = true;
 AsymmetricStereoEffect.prototype = {
 	setSize: function(width,height) {
-		this.left.setSize(width,height);
-		this.right.setSize(width,height);
 		this.renderer.setSize(width,height);
 	}
 	,render: function(scene,camera) {
 		scene.updateMatrixWorld(true);
 		if(camera.parent == null) camera.updateMatrixWorld(true);
-		this.stereo.update(camera);
-		this.renderer.render(scene,this.stereo.cameraL,this.left,true);
-		this.renderer.render(scene,this.stereo.cameraR,this.right,true);
-		this.renderer.render(this.scene,this.camera);
 	}
 	,__class__: AsymmetricStereoEffect
 };
@@ -154,7 +137,7 @@ Main.prototype = {
 		this.toeInEffect.setSize(width,height);
 		this.symmetricStereoEffect = new SymmetricStereoEffect(this.renderer,this.stereoCamera,width,height);
 		this.symmetricStereoEffect.setSize(width,height);
-		this.asymmetricStereoEffect = new AsymmetricStereoEffect(this.renderer,this.stereoCamera,width,height);
+		this.asymmetricStereoEffect = new AsymmetricStereoEffect(this.renderer,width,height);
 		this.asymmetricStereoEffect.setSize(width,height);
 		this.onResize();
 		window.addEventListener("resize",function() {
@@ -174,23 +157,29 @@ Main.prototype = {
 		};
 		window.document.addEventListener("mousewheel",onMouseWheel,false);
 		window.document.addEventListener("DOMMouseScroll",onMouseWheel,false);
-		this.shaderGUI.add(this,"effect",{ Anaglyph : "Anaglyph", Toein : "Toe-in", Symmetric : "Symmetric Stereo", Asymmetric : "Asymmetric Stereo"}).listen();
-		dat_ThreeObjectGUI.addItem(this.shaderGUI,this.monoCamera,"Mono Camera");
-		dat_ThreeObjectGUI.addItem(this.shaderGUI,this.stereoCamera,"Stereo Camera");
-		dat_ThreeObjectGUI.addItem(this.shaderGUI,this.stereoCamera.cameraL,"Stereo Camera Left");
-		dat_ThreeObjectGUI.addItem(this.shaderGUI,this.stereoCamera.cameraR,"Stereo Camera Right");
-		dat_ShaderGUI.generate(this.shaderGUI,"Anaglyph",this.anaglyphEffect.material.uniforms);
-		dat_ShaderGUI.generate(this.shaderGUI,"Toe-in",this.toeInEffect.material.uniforms);
-		dat_ShaderGUI.generate(this.shaderGUI,"Symmetric",this.symmetricStereoEffect.material.uniforms);
-		dat_ShaderGUI.generate(this.shaderGUI,"Asymmetric",this.asymmetricStereoEffect.material.uniforms);
+		this.setupGUI();
 		gameDiv.appendChild(this.renderer.domElement);
 		window.requestAnimationFrame($bind(this,this.animate));
 	}
 	,onResize: function() {
 		var width = window.innerWidth * this.renderer.getPixelRatio();
 		var height = window.innerHeight * this.renderer.getPixelRatio();
-		this.renderer.setSize(window.innerWidth,window.innerHeight);
-		this.anaglyphEffect.setSize(width,height);
+		this.renderer.setSize(width,height);
+		var _g = this.effect;
+		switch(_g) {
+		case "Anaglyph":
+			this.anaglyphEffect.setSize(width,height);
+			break;
+		case "Toe-in":
+			this.toeInEffect.setSize(width,height);
+			break;
+		case "Symmetric Stereo":
+			this.symmetricStereoEffect.setSize(width,height);
+			break;
+		case "Asymmetric Stereo":
+			this.asymmetricStereoEffect.setSize(width,height);
+			break;
+		}
 		this.monoCamera.aspect = width / height;
 		this.monoCamera.updateProjectionMatrix();
 	}
@@ -215,15 +204,15 @@ Main.prototype = {
 		window.requestAnimationFrame($bind(this,this.animate));
 	}
 	,setupGUI: function() {
-		this.shaderGUI.add(this,"effect",{ Anaglyph : "Anaglyph", Toein : "Toe-in", Symmetric : "Symmetric Stereo", Asymmetric : "Asymmetric Stereo"}).listen();
+		var _g = this;
+		this.shaderGUI.add(this,"effect",{ Anaglyph : "Anaglyph", Toein : "Toe-in", Symmetric : "Symmetric Stereo", Asymmetric : "Asymmetric Stereo"}).listen().onChange(function(newValue) {
+			_g.onResize();
+		});
 		dat_ThreeObjectGUI.addItem(this.shaderGUI,this.monoCamera,"Mono Camera");
 		dat_ThreeObjectGUI.addItem(this.shaderGUI,this.stereoCamera,"Stereo Camera");
 		dat_ThreeObjectGUI.addItem(this.shaderGUI,this.stereoCamera.cameraL,"Stereo Camera Left");
 		dat_ThreeObjectGUI.addItem(this.shaderGUI,this.stereoCamera.cameraR,"Stereo Camera Right");
 		dat_ShaderGUI.generate(this.shaderGUI,"Anaglyph",this.anaglyphEffect.material.uniforms);
-		dat_ShaderGUI.generate(this.shaderGUI,"Toe-in",this.toeInEffect.material.uniforms);
-		dat_ShaderGUI.generate(this.shaderGUI,"Symmetric",this.symmetricStereoEffect.material.uniforms);
-		dat_ShaderGUI.generate(this.shaderGUI,"Asymmetric",this.asymmetricStereoEffect.material.uniforms);
 	}
 	,__class__: Main
 };
@@ -259,62 +248,56 @@ Std.string = function(s) {
 var SymmetricStereoEffect = function(renderer,stereoCamera,width,height) {
 	this.renderer = renderer;
 	this.stereo = stereoCamera;
-	this.camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
-	this.scene = new THREE.Scene();
-	this.params = { minFilter : THREE.LinearFilter, magFilter : THREE.NearestFilter, format : THREE.RGBAFormat};
-	this.left = new THREE.WebGLRenderTarget(width,height,this.params);
-	this.right = new THREE.WebGLRenderTarget(width,height,this.params);
-	this.material = new THREE.ShaderMaterial({ vertexShader : shaders_SymmetricStereo.vertexShader, fragmentShader : shaders_SymmetricStereo.fragmentShader, uniforms : shaders_SymmetricStereo.uniforms});
-	this.material.uniforms.tLeft.value = this.left;
-	this.material.uniforms.tRight.value = this.right;
-	var mesh = new THREE.Mesh(new THREE.PlaneBufferGeometry(2,2),this.material);
-	this.scene.add(mesh);
 };
 SymmetricStereoEffect.__name__ = true;
 SymmetricStereoEffect.prototype = {
 	setSize: function(width,height) {
-		this.left.setSize(width,height);
-		this.right.setSize(width,height);
 		this.renderer.setSize(width,height);
 	}
 	,render: function(scene,camera) {
 		scene.updateMatrixWorld(true);
 		if(camera.parent == null) camera.updateMatrixWorld(true);
 		this.stereo.update(camera);
-		this.renderer.render(scene,this.stereo.cameraL,this.left,true);
-		this.renderer.render(scene,this.stereo.cameraR,this.right,true);
-		this.renderer.render(this.scene,this.camera);
+		var width = window.innerWidth;
+		var height = window.innerHeight * this.renderer.getPixelRatio();
+		this.renderer.enableScissorTest(true);
+		this.renderer.clear();
+		this.renderer.setScissor(0,0,width / 2,height);
+		this.renderer.setViewport(0,0,width / 2,height);
+		this.renderer.render(scene,this.stereo.cameraL);
+		this.renderer.setScissor(width / 2,0,width / 2,height);
+		this.renderer.setViewport(width / 2,0,width / 2,height);
+		this.renderer.render(scene,this.stereo.cameraR);
+		this.renderer.setViewport(width,height);
+		this.renderer.enableScissorTest(false);
 	}
 	,__class__: SymmetricStereoEffect
 };
 var ToeInEffect = function(renderer,stereoCamera,width,height) {
 	this.renderer = renderer;
 	this.stereo = stereoCamera;
-	this.camera = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
-	this.scene = new THREE.Scene();
-	this.params = { minFilter : THREE.LinearFilter, magFilter : THREE.NearestFilter, format : THREE.RGBAFormat};
-	this.left = new THREE.WebGLRenderTarget(width,height,this.params);
-	this.right = new THREE.WebGLRenderTarget(width,height,this.params);
-	this.material = new THREE.ShaderMaterial({ vertexShader : shaders_ToeIn.vertexShader, fragmentShader : shaders_ToeIn.fragmentShader, uniforms : shaders_ToeIn.uniforms});
-	this.material.uniforms.tLeft.value = this.left;
-	this.material.uniforms.tRight.value = this.right;
-	var mesh = new THREE.Mesh(new THREE.PlaneBufferGeometry(2,2),this.material);
-	this.scene.add(mesh);
 };
 ToeInEffect.__name__ = true;
 ToeInEffect.prototype = {
 	setSize: function(width,height) {
-		this.left.setSize(width,height);
-		this.right.setSize(width,height);
 		this.renderer.setSize(width,height);
 	}
 	,render: function(scene,camera) {
 		scene.updateMatrixWorld(true);
 		if(camera.parent == null) camera.updateMatrixWorld(true);
 		this.stereo.update(camera);
-		this.renderer.render(scene,this.stereo.cameraL,this.left,true);
-		this.renderer.render(scene,this.stereo.cameraR,this.right,true);
-		this.renderer.render(this.scene,this.camera);
+		var width = window.innerWidth;
+		var height = window.innerHeight * this.renderer.getPixelRatio();
+		this.renderer.enableScissorTest(true);
+		this.renderer.clear();
+		this.renderer.setScissor(0,0,width / 2,height);
+		this.renderer.setViewport(0,0,width / 2,height);
+		this.renderer.render(scene,this.stereo.cameraL);
+		this.renderer.setScissor(width / 2,0,width / 2,height);
+		this.renderer.setViewport(width / 2,0,width / 2,height);
+		this.renderer.render(scene,this.stereo.cameraR);
+		this.renderer.setViewport(width,height);
+		this.renderer.enableScissorTest(false);
 	}
 	,__class__: ToeInEffect
 };
@@ -537,12 +520,6 @@ js_Boot.__resolveNativeClass = function(name) {
 };
 var shaders_Anaglyph = function() { };
 shaders_Anaglyph.__name__ = true;
-var shaders_AsymmetricStereo = function() { };
-shaders_AsymmetricStereo.__name__ = true;
-var shaders_SymmetricStereo = function() { };
-shaders_SymmetricStereo.__name__ = true;
-var shaders_ToeIn = function() { };
-shaders_ToeIn.__name__ = true;
 var util_FileReader = function() { };
 util_FileReader.__name__ = true;
 var $_, $fid = 0;
@@ -573,14 +550,5 @@ js_Boot.__toStr = {}.toString;
 shaders_Anaglyph.uniforms = { tLeft : { type : "t", value : null}, tRight : { type : "t", value : null}, type : { type : "i", value : 0}};
 shaders_Anaglyph.vertexShader = "varying vec2 vUv;\r\n\r\nvoid main()\r\n{\r\n\tvUv = uv;\r\n\tgl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\r\n}";
 shaders_Anaglyph.fragmentShader = "varying vec2 vUv;\r\n\r\nuniform sampler2D tLeft;\r\nuniform sampler2D tRight;\r\nuniform int type;\r\n\r\nvoid main()\r\n{\r\n\tvec4 colorLeft = texture2D(tLeft, vUv);\r\n\tvec4 colorRight = texture2D(tRight, vUv);\r\n\t\r\n\tif(type == 0)\r\n\t{\r\n\t\t// Based on http://3dtv.at/Knowhow/AnaglyphComparison_en.aspx\r\n\t\tgl_FragColor = vec4(colorLeft.g * 0.7 + colorLeft.b * 0.3, colorRight.g, colorRight.b, colorLeft.a + colorRight.a);\r\n\t}\r\n\telse\r\n\t{\r\n\t\tgl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);\r\n\t}\r\n}";
-shaders_AsymmetricStereo.uniforms = { tLeft : { type : "t", value : null}, tRight : { type : "t", value : null}};
-shaders_AsymmetricStereo.vertexShader = "varying vec2 vUv;\r\n\r\nvoid main()\r\n{\r\n\tvUv = uv;\r\n\tgl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\r\n}";
-shaders_AsymmetricStereo.fragmentShader = "varying vec2 vUv;\r\n\r\nuniform sampler2D tLeft;\r\nuniform sampler2D tRight;\r\n\r\nvoid main()\r\n{\r\n\tvec4 colorLeft = texture2D(tLeft, vUv);\r\n\tvec4 colorRight = texture2D(tRight, vUv);\r\n\t\r\n\tgl_FragColor = vec4(1.0, 0.0, 1.0, 1.0);\r\n}";
-shaders_SymmetricStereo.uniforms = { tLeft : { type : "t", value : null}, tRight : { type : "t", value : null}};
-shaders_SymmetricStereo.vertexShader = "varying vec2 vUv;\r\n\r\nvoid main()\r\n{\r\n\tvUv = uv;\r\n\tgl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\r\n}";
-shaders_SymmetricStereo.fragmentShader = "varying vec2 vUv;\r\n\r\nuniform sampler2D tLeft;\r\nuniform sampler2D tRight;\r\n\r\nvoid main()\r\n{\r\n\tvec4 colorLeft = texture2D(tLeft, vUv);\r\n\tvec4 colorRight = texture2D(tRight, vUv);\r\n\t\r\n\tgl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);\r\n}";
-shaders_ToeIn.uniforms = { tLeft : { type : "t", value : null}, tRight : { type : "t", value : null}};
-shaders_ToeIn.vertexShader = "varying vec2 vUv;\r\n\r\nvoid main()\r\n{\r\n\tvUv = uv;\r\n\tgl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\r\n}";
-shaders_ToeIn.fragmentShader = "varying vec2 vUv;\r\n\r\nuniform sampler2D tLeft;\r\nuniform sampler2D tRight;\r\n\r\nvoid main()\r\n{\r\n\tvec4 colorLeft = texture2D(tLeft, vUv);\r\n\tvec4 colorRight = texture2D(tRight, vUv);\r\n\t\r\n\tgl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);\r\n}";
 Main.main();
 })(typeof console != "undefined" ? console : {log:function(){}}, typeof window != "undefined" ? window : typeof global != "undefined" ? global : typeof self != "undefined" ? self : this);

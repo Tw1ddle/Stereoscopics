@@ -1,52 +1,22 @@
 package;
 
-import shaders.ToeIn;
-import three.Mesh;
-import three.OrthographicCamera;
+import js.Browser;
 import three.PerspectiveCamera;
-import three.PixelFormat;
-import three.PlaneBufferGeometry;
 import three.Scene;
-import three.ShaderMaterial;
 import three.StereoCamera;
-import three.TextureFilter;
-import three.WebGLRenderTarget;
-import three.WebGLRenderTargetOptions;
 import three.WebGLRenderer;
 
+// TODO
 class ToeInEffect {
-	private var camera:OrthographicCamera;
 	private var stereo:StereoCamera;
-	private var scene:Scene;
-	private var params:WebGLRenderTargetOptions;
-	private var left:WebGLRenderTarget;
-	private var right:WebGLRenderTarget;
-	public var material(default, null):ShaderMaterial;
 	private var renderer:WebGLRenderer;
 	
 	public function new(renderer:WebGLRenderer, stereoCamera:StereoCamera, width:Float, height:Float) {
 		this.renderer = renderer;
 		this.stereo = stereoCamera;
-		camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
-		scene = new Scene();
-		params = { minFilter: TextureFilter.LinearFilter, magFilter: TextureFilter.NearestFilter, format: cast PixelFormat.RGBAFormat };
-		left = new WebGLRenderTarget(width, height, params);
-		right = new WebGLRenderTarget(width, height, params);
-		material = new ShaderMaterial( {
-			vertexShader: ToeIn.vertexShader,
-			fragmentShader: ToeIn.fragmentShader,
-			uniforms: ToeIn.uniforms
-		});
-		material.uniforms.tLeft.value = left;
-		material.uniforms.tRight.value = right;
-		
-		var mesh = new Mesh(new PlaneBufferGeometry(2, 2), material);
-		scene.add(mesh);
 	}
 	
 	public function setSize(width:Float, height:Float):Void {
-		left.setSize(width, height);
-		right.setSize(width, height);
 		renderer.setSize(width, height);
 	}
 	
@@ -59,8 +29,21 @@ class ToeInEffect {
 		
 		stereo.update(camera);
 		
-		renderer.render(scene, stereo.cameraL, left, true);
-		renderer.render(scene, stereo.cameraR, right, true);
-		renderer.render(this.scene, this.camera);
+		var width = Browser.window.innerWidth; // TODO why not PixelRatio? * renderer.getPixelRatio();
+		var height = Browser.window.innerHeight * renderer.getPixelRatio();
+		
+		renderer.enableScissorTest(true);
+		renderer.clear();
+		
+		renderer.setScissor(0, 0, width / 2, height);
+		renderer.setViewport(0, 0, width / 2, height);
+		renderer.render(scene, stereo.cameraL);
+		
+		renderer.setScissor(width / 2, 0, width / 2, height);
+		renderer.setViewport(width / 2, 0, width / 2, height);
+		renderer.render(scene, stereo.cameraR);
+		
+		renderer.setViewport(width, height);
+		renderer.enableScissorTest(false);
 	}
 }
