@@ -1,6 +1,6 @@
 ![Project logo](screenshots/stereoscopics_logo.png?raw=true "Stereoscopics Logo")
 
-Anaglyph and stereo rendering methods demo. Try it [in your browser](http://tw1ddle.github.io/Stereoscopics/).
+Anaglyph and stereo rendering methods implementation.
 
 ## How It Works ##
 
