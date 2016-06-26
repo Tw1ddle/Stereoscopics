@@ -3,31 +3,26 @@ package;
 import js.Browser;
 import three.PerspectiveCamera;
 import three.Scene;
-import three.StereoCamera;
 import three.WebGLRenderer;
+import three.Vector3;
 
-// TODO
 class ToeInEffect {
-	private var stereo:StereoCamera;
 	private var renderer:WebGLRenderer;
 	
-	public function new(renderer:WebGLRenderer, stereoCamera:StereoCamera, width:Float, height:Float) {
+	public function new(renderer:WebGLRenderer, width:Float, height:Float) {
 		this.renderer = renderer;
-		this.stereo = stereoCamera;
 	}
 	
 	public function setSize(width:Float, height:Float):Void {
 		renderer.setSize(width, height);
 	}
 	
-	public function render(scene:Scene, camera:PerspectiveCamera):Void {
+	public function render(scene:Scene, camera:PerspectiveCamera, eyeSeparation:Float):Void {
 		scene.updateMatrixWorld(true);
 		
 		if (camera.parent == null) {
 			camera.updateMatrixWorld(true);
 		}
-		
-		stereo.update(camera);
 		
 		var width = Browser.window.innerWidth; // TODO why not PixelRatio? * renderer.getPixelRatio();
 		var height = Browser.window.innerHeight * renderer.getPixelRatio();
@@ -35,13 +30,21 @@ class ToeInEffect {
 		renderer.enableScissorTest(true);
 		renderer.clear();
 		
+		var p = camera.position.clone();
+		
 		renderer.setScissor(0, 0, width / 2, height);
 		renderer.setViewport(0, 0, width / 2, height);
-		renderer.render(scene, stereo.cameraL);
+		camera.position.set(p.x + eyeSeparation / 2.0, p.y, p.z);
+		camera.lookAt(new Vector3(0, 0, 0));
+		renderer.render(scene, camera);
 		
 		renderer.setScissor(width / 2, 0, width / 2, height);
 		renderer.setViewport(width / 2, 0, width / 2, height);
-		renderer.render(scene, stereo.cameraR);
+		camera.position.set(p.x - eyeSeparation / 2.0, p.y, p.z);
+		camera.lookAt(new Vector3(0, 0, 0));
+		renderer.render(scene, camera);
+		
+		camera.position.set(p.x, p.y, p.z);
 		
 		renderer.setViewport(width, height);
 		renderer.enableScissorTest(false);

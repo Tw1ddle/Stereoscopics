@@ -32,20 +32,6 @@ AnaglyphEffect.prototype = {
 	}
 	,__class__: AnaglyphEffect
 };
-var AsymmetricStereoEffect = function(renderer,width,height) {
-	this.renderer = renderer;
-};
-AsymmetricStereoEffect.__name__ = true;
-AsymmetricStereoEffect.prototype = {
-	setSize: function(width,height) {
-		this.renderer.setSize(width,height);
-	}
-	,render: function(scene,camera) {
-		scene.updateMatrixWorld(true);
-		if(camera.parent == null) camera.updateMatrixWorld(true);
-	}
-	,__class__: AsymmetricStereoEffect
-};
 var HxOverrides = function() { };
 HxOverrides.__name__ = true;
 HxOverrides.indexOf = function(a,obj,i) {
@@ -133,12 +119,10 @@ Main.prototype = {
 		this.effect = "Anaglyph";
 		this.anaglyphEffect = new AnaglyphEffect(this.renderer,this.stereoCamera,width,height);
 		this.anaglyphEffect.setSize(width,height);
-		this.toeInEffect = new ToeInEffect(this.renderer,this.stereoCamera,width,height);
+		this.toeInEffect = new ToeInEffect(this.renderer,width,height);
 		this.toeInEffect.setSize(width,height);
 		this.symmetricStereoEffect = new SymmetricStereoEffect(this.renderer,this.stereoCamera,width,height);
 		this.symmetricStereoEffect.setSize(width,height);
-		this.asymmetricStereoEffect = new AsymmetricStereoEffect(this.renderer,width,height);
-		this.asymmetricStereoEffect.setSize(width,height);
 		this.onResize();
 		window.addEventListener("resize",function() {
 			_g.onResize();
@@ -176,9 +160,6 @@ Main.prototype = {
 		case "Symmetric Stereo":
 			this.symmetricStereoEffect.setSize(width,height);
 			break;
-		case "Asymmetric Stereo":
-			this.asymmetricStereoEffect.setSize(width,height);
-			break;
 		}
 		this.monoCamera.aspect = width / height;
 		this.monoCamera.updateProjectionMatrix();
@@ -192,20 +173,17 @@ Main.prototype = {
 			this.anaglyphEffect.render(this.scene,this.monoCamera);
 			break;
 		case "Toe-in":
-			this.toeInEffect.render(this.scene,this.monoCamera);
+			this.toeInEffect.render(this.scene,this.monoCamera,this.stereoCamera.eyeSep);
 			break;
 		case "Symmetric Stereo":
 			this.symmetricStereoEffect.render(this.scene,this.monoCamera);
-			break;
-		case "Asymmetric Stereo":
-			this.asymmetricStereoEffect.render(this.scene,this.monoCamera);
 			break;
 		}
 		window.requestAnimationFrame($bind(this,this.animate));
 	}
 	,setupGUI: function() {
 		var _g = this;
-		this.shaderGUI.add(this,"effect",{ Anaglyph : "Anaglyph", Toein : "Toe-in", Symmetric : "Symmetric Stereo", Asymmetric : "Asymmetric Stereo"}).listen().onChange(function(newValue) {
+		this.shaderGUI.add(this,"effect",{ Anaglyph : "Anaglyph", Toein : "Toe-in", Symmetric : "Symmetric Stereo"}).listen().onChange(function(newValue) {
 			_g.onResize();
 		});
 		dat_ThreeObjectGUI.addItem(this.shaderGUI,this.monoCamera,"Mono Camera");
@@ -273,29 +251,33 @@ SymmetricStereoEffect.prototype = {
 	}
 	,__class__: SymmetricStereoEffect
 };
-var ToeInEffect = function(renderer,stereoCamera,width,height) {
+var ToeInEffect = function(renderer,width,height) {
 	this.renderer = renderer;
-	this.stereo = stereoCamera;
 };
 ToeInEffect.__name__ = true;
 ToeInEffect.prototype = {
 	setSize: function(width,height) {
 		this.renderer.setSize(width,height);
 	}
-	,render: function(scene,camera) {
+	,render: function(scene,camera,eyeSeparation) {
 		scene.updateMatrixWorld(true);
 		if(camera.parent == null) camera.updateMatrixWorld(true);
-		this.stereo.update(camera);
 		var width = window.innerWidth;
 		var height = window.innerHeight * this.renderer.getPixelRatio();
 		this.renderer.enableScissorTest(true);
 		this.renderer.clear();
+		var p = camera.position.clone();
 		this.renderer.setScissor(0,0,width / 2,height);
 		this.renderer.setViewport(0,0,width / 2,height);
-		this.renderer.render(scene,this.stereo.cameraL);
+		camera.position.set(p.x + eyeSeparation / 2.0,p.y,p.z);
+		camera.lookAt(new THREE.Vector3(0,0,0));
+		this.renderer.render(scene,camera);
 		this.renderer.setScissor(width / 2,0,width / 2,height);
 		this.renderer.setViewport(width / 2,0,width / 2,height);
-		this.renderer.render(scene,this.stereo.cameraR);
+		camera.position.set(p.x - eyeSeparation / 2.0,p.y,p.z);
+		camera.lookAt(new THREE.Vector3(0,0,0));
+		this.renderer.render(scene,camera);
+		camera.position.set(p.x,p.y,p.z);
 		this.renderer.setViewport(width,height);
 		this.renderer.enableScissorTest(false);
 	}

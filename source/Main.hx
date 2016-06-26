@@ -20,7 +20,6 @@ import webgl.Detector;
 	var ANAGLYPH = "Anaglyph";
 	var TOE_IN = "Toe-in";
 	var SYMMETRIC_STEREO = "Symmetric Stereo";
-	var ASYMMETRIC_STEREO = "Asymmetric Stereo";
 }
 
 class Main {
@@ -40,7 +39,6 @@ class Main {
 	// Stereo techniques
 	private var anaglyphEffect:AnaglyphEffect;
 	private var toeInEffect:ToeInEffect;
-	private var asymmetricStereoEffect:AsymmetricStereoEffect;
 	private var symmetricStereoEffect:SymmetricStereoEffect;
 	
 	private static var lastAnimationTime:Float = 0.0; // Last time from requestAnimationFrame
@@ -144,14 +142,11 @@ class Main {
 		anaglyphEffect = new AnaglyphEffect(renderer, stereoCamera, width, height);
 		anaglyphEffect.setSize(width, height);
 		
-		toeInEffect = new ToeInEffect(renderer, stereoCamera, width, height);
+		toeInEffect = new ToeInEffect(renderer, width, height);
 		toeInEffect.setSize(width, height);
 		
 		symmetricStereoEffect = new SymmetricStereoEffect(renderer, stereoCamera, width, height);
 		symmetricStereoEffect.setSize(width, height);
-		
-		asymmetricStereoEffect = new AsymmetricStereoEffect(renderer, width, height);
-		asymmetricStereoEffect.setSize(width, height);
 		
 		// Initial renderer setup
 		onResize();
@@ -212,8 +207,6 @@ class Main {
 				toeInEffect.setSize(width, height);
 			case SYMMETRIC_STEREO:
 				symmetricStereoEffect.setSize(width, height);
-			case ASYMMETRIC_STEREO:
-				asymmetricStereoEffect.setSize(width, height);
 		}
 		
 		monoCamera.aspect = width / height;
@@ -232,11 +225,9 @@ class Main {
 			case ANAGLYPH:
 				anaglyphEffect.render(scene, monoCamera);
 			case TOE_IN:
-				toeInEffect.render(scene, monoCamera);
+				toeInEffect.render(scene, monoCamera, stereoCamera.eyeSep);
 			case SYMMETRIC_STEREO:
 				symmetricStereoEffect.render(scene, monoCamera);
-			case ASYMMETRIC_STEREO:
-				asymmetricStereoEffect.render(scene, monoCamera);
 		}
 		
 		Browser.window.requestAnimationFrame(animate);
@@ -250,8 +241,7 @@ class Main {
 		shaderGUI.add(this, 'effect', {
 			Anaglyph: ANAGLYPH,
 			Toein: TOE_IN,
-			Symmetric: SYMMETRIC_STEREO,
-			Asymmetric: ASYMMETRIC_STEREO
+			Symmetric: SYMMETRIC_STEREO
 		}).listen().onChange(function(newValue) {
 			onResize();
 		});
