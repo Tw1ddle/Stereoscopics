@@ -1,7 +1,5 @@
 ![Project logo](screenshots/stereoscopics_logo.png?raw=true "Stereoscopics Logo")
 
-[![Build Status](https://img.shields.io/travis/Tw1ddle/Stereosopics.svg?style=flat-square)](https://travis-ci.org/Tw1ddle/Stereosopics)
-
 Anaglyph and stereo rendering methods implementation.
 
 ## How It Works ##
